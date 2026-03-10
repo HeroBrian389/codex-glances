@@ -1,6 +1,7 @@
 mod collector;
 mod helpers;
 mod parsing;
+mod registry;
 
 #[cfg(test)]
 mod tests;
@@ -11,6 +12,10 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 pub use collector::DataCollector;
+pub(crate) use registry::{
+    add_workspace_registry_entry, default_workspace_registry_path, load_workspace_registry,
+    toggle_workspace_pinned,
+};
 
 const SESSION_TAIL_BYTES: usize = 8_000_000;
 const RUNNING_ACTIVITY_GRACE_SECONDS: i64 = 3_600;

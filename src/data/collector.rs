@@ -1,6 +1,7 @@
-use crate::types::{SessionRow, SessionStatus};
+use crate::types::{DashboardData, SessionRow, SessionStatus, WorkspaceRow};
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use chrono::{DateTime, Utc};
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -8,18 +9,28 @@ use std::process::Command;
 use super::helpers::{
     branch_from_head_marker, extract_declared_var, file_stamp_from_metadata,
     is_codex_exec_subcommand, is_thread_id, looks_like_user_action_needed,
-    process_looks_like_codex, read_git_head_marker, read_process_env,
-    thread_id_from_snapshot_filename,
+    process_looks_like_codex, read_git_head_marker, read_process_env, stamp_datetime,
+    thread_id_from_snapshot_filename, workspace_key_for_path,
 };
+use super::load_workspace_registry;
 use super::{
     CachedBranch, CachedHistory, CachedSessionMeta, CachedSummary, FileStamp, ProcCandidate,
     ProcInfo, ScreenSession, SessionFile, SessionSummary,
 };
 
+#[derive(Debug, Clone)]
+struct WorkspaceCandidate {
+    key: String,
+    path: String,
+    fallback_name: Option<String>,
+    last_seen: Option<DateTime<Utc>>,
+}
+
 pub struct DataCollector {
     pub(super) snapshots_dir: PathBuf,
     pub(super) sessions_dir: PathBuf,
     pub(super) history_path: PathBuf,
+    pub(super) workspace_registry_path: PathBuf,
     pub(super) summary_cache: HashMap<String, CachedSummary>,
     pub(super) session_meta_cache: HashMap<String, CachedSessionMeta>,
     pub(super) history_cache: Option<CachedHistory>,
@@ -36,6 +47,7 @@ impl DataCollector {
             snapshots_dir: codex_dir.join("shell_snapshots"),
             sessions_dir: codex_dir.join("sessions"),
             history_path: codex_dir.join("history.jsonl"),
+            workspace_registry_path: super::default_workspace_registry_path()?,
             summary_cache: HashMap::new(),
             session_meta_cache: HashMap::new(),
             history_cache: None,
@@ -44,7 +56,7 @@ impl DataCollector {
         })
     }
 
-    pub fn collect(&mut self) -> Result<Vec<SessionRow>> {
+    pub fn collect(&mut self) -> Result<DashboardData> {
         let screens = self
             .list_screen_sessions()
             .context("failed to list screen sessions")?;
@@ -53,8 +65,11 @@ impl DataCollector {
         let session_files = self.index_session_files();
         let session_meta = self.load_session_meta(&session_files);
         let history_last_user = self.history_last_user();
+        let registry = load_workspace_registry(&self.workspace_registry_path);
 
-        let mut rows = Vec::with_capacity(screens.len());
+        let mut active_sessions_by_workspace: HashMap<String, Vec<SessionRow>> = HashMap::new();
+        let mut workspace_candidates = self.historical_workspace_candidates(&session_files);
+
         for session in screens {
             let process_info = codex_by_sty.get(&session.id);
             let mut cwd = process_info
@@ -82,11 +97,11 @@ impl DataCollector {
             let scheduled_follow_ups =
                 self.scheduled_follow_up_count(&thread_id, &session_meta, &session_files);
 
-            rows.push(SessionRow {
-                screen_id: session.id,
-                screen_name: session.name,
+            let session_row = SessionRow {
+                screen_id: session.id.clone(),
+                screen_name: session.name.clone(),
                 branch,
-                cwd,
+                cwd: cwd.clone(),
                 thread_id,
                 status,
                 needs_attention,
@@ -95,11 +110,95 @@ impl DataCollector {
                 last_user,
                 last_agent: summary.last_agent,
                 last_update: summary.last_update,
-            });
+            };
+
+            let workspace_candidate = self.workspace_candidate_for_session(&session_row);
+            workspace_candidates
+                .entry(workspace_candidate.key.clone())
+                .and_modify(|candidate| {
+                    candidate.last_seen = super::helpers::max_datetime(
+                        candidate.last_seen,
+                        workspace_candidate.last_seen,
+                    );
+                    if candidate.fallback_name.is_none() {
+                        candidate.fallback_name = workspace_candidate.fallback_name.clone();
+                    }
+                })
+                .or_insert(workspace_candidate.clone());
+
+            active_sessions_by_workspace
+                .entry(workspace_candidate.key)
+                .or_default()
+                .push(session_row);
         }
 
-        rows.sort_by(|a, b| a.screen_id.cmp(&b.screen_id));
-        Ok(rows)
+        let registry_by_path = registry
+            .workspaces
+            .into_iter()
+            .map(|entry| (entry.path.clone(), entry))
+            .collect::<HashMap<_, _>>();
+
+        let mut workspaces = workspace_candidates
+            .into_values()
+            .map(|candidate| {
+                let mut sessions = active_sessions_by_workspace
+                    .remove(&candidate.key)
+                    .unwrap_or_default();
+                self.sort_sessions(&mut sessions);
+
+                let customization = registry_by_path.get(&candidate.path);
+                let last_update = sessions
+                    .iter()
+                    .fold(candidate.last_seen, |current, session| {
+                        super::helpers::max_datetime(current, session.last_update)
+                    });
+                let branch_label = self.workspace_branch_label(&candidate.path, &sessions);
+                let display_name = workspace_display_name(
+                    &candidate.path,
+                    candidate.fallback_name.as_deref(),
+                    customization.and_then(|entry| entry.display_name.as_deref()),
+                );
+                let waiting_sessions = sessions
+                    .iter()
+                    .filter(|session| session.status == SessionStatus::WaitingInput)
+                    .count();
+                let running_sessions = sessions
+                    .iter()
+                    .filter(|session| session.status == SessionStatus::Running)
+                    .count();
+                let follow_ups = sessions
+                    .iter()
+                    .map(|session| session.scheduled_follow_ups)
+                    .sum::<usize>();
+                let summary_session = sessions.first();
+
+                WorkspaceRow {
+                    key: candidate.key,
+                    path: candidate.path,
+                    display_name,
+                    branch_label,
+                    pinned: customization.is_some_and(|entry| entry.pinned),
+                    tags: customization
+                        .map(|entry| entry.tags.clone())
+                        .unwrap_or_default(),
+                    session_count: sessions.len(),
+                    waiting_sessions,
+                    running_sessions,
+                    follow_ups,
+                    last_update,
+                    last_user: summary_session
+                        .map(|session| session.last_user.clone())
+                        .unwrap_or_else(|| "-".to_string()),
+                    last_agent: summary_session
+                        .map(|session| session.last_agent.clone())
+                        .unwrap_or_else(|| "-".to_string()),
+                    sessions,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        self.sort_workspaces(&mut workspaces);
+        Ok(DashboardData { workspaces })
     }
 
     fn row_summary(
@@ -246,6 +345,127 @@ impl DataCollector {
                     || summary.last_event == "-"
             })
             .count()
+    }
+
+    fn historical_workspace_candidates(
+        &mut self,
+        session_files: &HashMap<String, SessionFile>,
+    ) -> HashMap<String, WorkspaceCandidate> {
+        let mut candidates = HashMap::new();
+
+        for (thread_id, session_file) in session_files {
+            let Some(meta) = self.parse_session_meta_cached(thread_id, session_file) else {
+                continue;
+            };
+            if meta.cwd.trim().is_empty() {
+                continue;
+            }
+
+            let key = workspace_key_for_path(&meta.cwd);
+            let path = key.clone();
+            let candidate = WorkspaceCandidate {
+                key: key.clone(),
+                path,
+                fallback_name: None,
+                last_seen: stamp_datetime(session_file.stamp),
+            };
+            candidates
+                .entry(key)
+                .and_modify(|existing: &mut WorkspaceCandidate| {
+                    existing.last_seen =
+                        super::helpers::max_datetime(existing.last_seen, candidate.last_seen);
+                })
+                .or_insert(candidate);
+        }
+
+        let registry = load_workspace_registry(&self.workspace_registry_path);
+        for entry in registry.workspaces {
+            candidates
+                .entry(entry.path.clone())
+                .or_insert_with(|| WorkspaceCandidate {
+                    key: entry.path.clone(),
+                    path: entry.path,
+                    fallback_name: None,
+                    last_seen: None,
+                });
+        }
+
+        candidates
+    }
+
+    fn workspace_candidate_for_session(&self, session: &SessionRow) -> WorkspaceCandidate {
+        if session.cwd == "-" {
+            return WorkspaceCandidate {
+                key: format!("screen:{}", session.screen_id),
+                path: "-".to_string(),
+                fallback_name: Some(session.screen_name.clone()),
+                last_seen: session.last_update,
+            };
+        }
+
+        let path = workspace_key_for_path(&session.cwd);
+        WorkspaceCandidate {
+            key: path.clone(),
+            path,
+            fallback_name: None,
+            last_seen: session.last_update,
+        }
+    }
+
+    fn workspace_branch_label(&mut self, path: &str, sessions: &[SessionRow]) -> String {
+        let branches = sessions
+            .iter()
+            .map(|session| session.branch.as_str())
+            .filter(|branch| *branch != "-")
+            .collect::<BTreeSet<_>>();
+
+        match branches.len() {
+            0 => self.git_branch_for_cwd(path),
+            1 => branches
+                .iter()
+                .next()
+                .map(|branch| (*branch).to_string())
+                .unwrap_or_else(|| "-".to_string()),
+            count => format!("{count} branches"),
+        }
+    }
+
+    fn sort_sessions(&self, sessions: &mut [SessionRow]) {
+        sessions.sort_by(|left, right| {
+            let left_key = (
+                !left.needs_attention,
+                left.status.rank(),
+                right.last_update < left.last_update,
+                left.screen_name.clone(),
+            );
+            let right_key = (
+                !right.needs_attention,
+                right.status.rank(),
+                left.last_update < right.last_update,
+                right.screen_name.clone(),
+            );
+            left_key.cmp(&right_key)
+        });
+    }
+
+    fn sort_workspaces(&self, workspaces: &mut [WorkspaceRow]) {
+        workspaces.sort_by(|left, right| {
+            let left_key = (
+                !left.pinned,
+                left.waiting_sessions == 0,
+                left.running_sessions == 0,
+                right.last_update < left.last_update,
+                left.display_name.to_lowercase(),
+            );
+            let right_key = (
+                !right.pinned,
+                right.waiting_sessions == 0,
+                right.running_sessions == 0,
+                left.last_update < right.last_update,
+                right.display_name.to_lowercase(),
+            );
+            left_key.cmp(&right_key)
+        });
     }
 
     fn list_screen_sessions(&self) -> Result<Vec<ScreenSession>> {
@@ -447,4 +667,25 @@ impl DataCollector {
         );
         branch
     }
+}
+
+fn workspace_display_name(
+    path: &str,
+    fallback_name: Option<&str>,
+    custom_display_name: Option<&str>,
+) -> String {
+    if let Some(name) = custom_display_name.filter(|name| !name.trim().is_empty()) {
+        return name.to_string();
+    }
+
+    if path == "-" {
+        return fallback_name.unwrap_or("Unlinked session").to_string();
+    }
+
+    Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or(path)
+        .to_string()
 }

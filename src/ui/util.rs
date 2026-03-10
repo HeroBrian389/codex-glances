@@ -1,18 +1,32 @@
-use crate::types::SessionRow;
+use crate::types::{SessionRow, WorkspaceRow};
 use chrono::{DateTime, Utc};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 
-pub(super) fn row_matches_query(row: &SessionRow, query: &str) -> bool {
-    row.screen_id.to_lowercase().contains(query)
-        || row.screen_name.to_lowercase().contains(query)
-        || row.branch.to_lowercase().contains(query)
-        || row.cwd.to_lowercase().contains(query)
-        || row.thread_id.to_lowercase().contains(query)
-        || row.last_event.to_lowercase().contains(query)
-        || row.last_user.to_lowercase().contains(query)
-        || row.last_agent.to_lowercase().contains(query)
-        || row.scheduled_follow_ups.to_string().contains(query)
-        || row.status.as_str().to_lowercase().contains(query)
+pub(super) fn workspace_matches_query(workspace: &WorkspaceRow, query: &str) -> bool {
+    workspace.display_name.to_lowercase().contains(query)
+        || workspace.path.to_lowercase().contains(query)
+        || workspace.branch_label.to_lowercase().contains(query)
+        || workspace
+            .tags
+            .iter()
+            .any(|tag| tag.to_lowercase().contains(query))
+        || workspace
+            .sessions
+            .iter()
+            .any(|session| session_matches_query(session, query))
+}
+
+pub(super) fn session_matches_query(session: &SessionRow, query: &str) -> bool {
+    session.screen_id.to_lowercase().contains(query)
+        || session.screen_name.to_lowercase().contains(query)
+        || session.branch.to_lowercase().contains(query)
+        || session.cwd.to_lowercase().contains(query)
+        || session.thread_id.to_lowercase().contains(query)
+        || session.last_event.to_lowercase().contains(query)
+        || session.last_user.to_lowercase().contains(query)
+        || session.last_agent.to_lowercase().contains(query)
+        || session.scheduled_follow_ups.to_string().contains(query)
+        || session.status.as_str().to_lowercase().contains(query)
 }
 
 pub(super) fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {

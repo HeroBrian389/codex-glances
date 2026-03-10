@@ -206,12 +206,44 @@ pub(super) fn file_stamp_from_metadata(meta: fs::Metadata) -> FileStamp {
     }
 }
 
+pub(crate) fn stamp_datetime(stamp: FileStamp) -> Option<DateTime<Utc>> {
+    let seconds = (stamp.modified_ns / 1_000_000_000) as i64;
+    DateTime::<Utc>::from_timestamp(seconds, 0)
+}
+
 pub(super) fn read_git_head_marker(repo_path: &Path) -> Option<String> {
     let git_dir = resolve_git_dir(repo_path)?;
     fs::read_to_string(git_dir.join("HEAD"))
         .ok()
         .map(|content| content.trim().to_string())
         .filter(|content| !content.is_empty())
+}
+
+pub(crate) fn find_git_root(path: &Path) -> Option<PathBuf> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        fs::canonicalize(path).ok()?
+    };
+
+    absolute
+        .ancestors()
+        .find(|candidate| resolve_git_dir(candidate).is_some())
+        .map(Path::to_path_buf)
+}
+
+pub(crate) fn normalize_workspace_path(path: &Path) -> Result<PathBuf> {
+    let canonical = fs::canonicalize(path)
+        .with_context(|| format!("failed to canonicalize {}", path.display()))?;
+    Ok(find_git_root(&canonical).unwrap_or(canonical))
+}
+
+pub(crate) fn workspace_key_for_path(raw_path: &str) -> String {
+    let path = Path::new(raw_path);
+    find_git_root(path)
+        .unwrap_or_else(|| path.to_path_buf())
+        .to_string_lossy()
+        .into_owned()
 }
 
 fn resolve_git_dir(repo_path: &Path) -> Option<PathBuf> {

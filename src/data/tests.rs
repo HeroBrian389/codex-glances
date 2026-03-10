@@ -49,6 +49,7 @@ fn test_collector(root: &Path) -> DataCollector {
         snapshots_dir: root.join("shell_snapshots"),
         sessions_dir: root.join("sessions"),
         history_path: root.join("history.jsonl"),
+        workspace_registry_path: root.join("workspaces.json"),
         summary_cache: HashMap::new(),
         session_meta_cache: HashMap::new(),
         history_cache: None,
