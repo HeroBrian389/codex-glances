@@ -2,6 +2,12 @@
 
 Glances-style Rust TUI for coordinating many Codex + GNU Screen sessions.
 
+## Requirements
+
+- Rust toolchain with Cargo
+- GNU Screen available in `PATH`
+- Codex CLI available in `PATH`
+
 ## Features
 
 - Auto-discovers detached `screen` sessions from `screen -ls`
@@ -16,20 +22,33 @@ Glances-style Rust TUI for coordinating many Codex + GNU Screen sessions.
 - Search/filter + sort keybinds
 - Shortcut attach commands (`s1`, `s2`, ...)
 
+The app reads Codex state from `~/.codex/`.
+
+## Getting Started
+
+```bash
+git clone https://github.com/HeroBrian389/codex-glances.git
+cd codex-glances
+```
+
 ## Build
 
 ```bash
-source ~/.cargo/env
-cd /home/ubuntu/codex-glances
 cargo build --release
 ```
 
 ## Run
 
 ```bash
-source ~/.cargo/env
-cd /home/ubuntu/codex-glances
 cargo run --release
+```
+
+## Verify
+
+```bash
+cargo test
+cargo fmt -- --check
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 ## Keybinds

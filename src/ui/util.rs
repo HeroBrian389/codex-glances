@@ -52,8 +52,17 @@ pub(super) fn age_string(ts: Option<DateTime<Utc>>) -> String {
 }
 
 pub(super) fn shorten_home(path: &str) -> String {
-    path.strip_prefix("/home/ubuntu/")
-        .map_or_else(|| path.to_string(), |p| p.to_string())
+    let Ok(home) = std::env::var("HOME") else {
+        return path.to_string();
+    };
+
+    if path == home {
+        "~".to_string()
+    } else if let Some(rest) = path.strip_prefix(&(home + "/")) {
+        format!("~/{rest}")
+    } else {
+        path.to_string()
+    }
 }
 
 pub(super) fn truncate_chars(input: &str, max: usize) -> String {

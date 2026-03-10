@@ -204,7 +204,7 @@ fn parse_session_summary_marks_actionable_prompt_without_user_ts_as_waiting_cand
 #[test]
 fn process_matcher_accepts_current_codex_layouts() {
     assert!(process_looks_like_codex(
-        "node /home/ubuntu/.nvm/versions/node/v22.18.0/bin/codex --search"
+        "node /opt/node/bin/codex --search"
     ));
     assert!(process_looks_like_codex(
         "/opt/vendor/codex/codex --model gpt-5.4"

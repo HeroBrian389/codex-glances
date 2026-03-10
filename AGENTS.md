@@ -24,4 +24,4 @@ Add unit tests next to the module area they cover. Prefer focused tests that exe
 This repository currently has no established Git history, so use clear imperative commit subjects such as `Add branch sort for session rows`. Keep commits scoped to one change. PRs should include a concise summary, any related issue or task link, test results, and a screenshot or terminal capture when TUI behavior changes.
 
 ## Security & Configuration Tips
-Do not hardcode machine-specific paths beyond the `/home/ubuntu/...` conventions already assumed by the tool. Avoid committing session logs, local snapshots, or other transient data discovered from Codex/screen environments.
+Prefer `HOME`-relative or environment-driven paths over machine-specific absolute paths. Avoid committing session logs, local snapshots, shell dumps, `.env` files, or other transient data discovered from Codex/screen environments.

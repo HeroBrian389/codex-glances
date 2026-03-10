@@ -1,1 +1,10 @@
 /target
+/.codex/
+/.env
+/.env.*
+/.direnv/
+/history.jsonl
+/sessions/
+/shell_snapshots/
+*.log
+screenlog.*

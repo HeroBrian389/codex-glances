@@ -3,12 +3,16 @@ use crate::data::DataCollector;
 use crate::types::{SessionRow, SessionStatus};
 use chrono::{TimeZone, Utc};
 
+fn fixture_path(screen_name: &str) -> String {
+    format!("/tmp/{screen_name}")
+}
+
 fn row(screen_id: &str, screen_name: &str, branch: &str, updated_at: i64) -> SessionRow {
     SessionRow {
         screen_id: screen_id.to_string(),
         screen_name: screen_name.to_string(),
         branch: branch.to_string(),
-        cwd: format!("/home/ubuntu/{screen_name}"),
+        cwd: fixture_path(screen_name),
         thread_id: format!("{screen_id}-thread"),
         status: SessionStatus::Idle,
         needs_attention: false,
@@ -84,7 +88,7 @@ fn command_mode_spawn_shortcut_uses_visible_row_folder() {
 
     assert_eq!(
         app.handle_command_key(crossterm::event::KeyCode::Enter),
-        super::AppAction::Spawn("/home/ubuntu/beta".to_string())
+        super::AppAction::Spawn(fixture_path("beta"))
     );
 }
 
@@ -107,6 +111,6 @@ fn normal_mode_shift_n_spawns_selected_row_folder() {
             crossterm::event::KeyCode::Char('N'),
             crossterm::event::KeyModifiers::SHIFT,
         ),
-        super::AppAction::Spawn("/home/ubuntu/beta".to_string())
+        super::AppAction::Spawn(fixture_path("beta"))
     );
 }
