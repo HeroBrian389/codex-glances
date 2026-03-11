@@ -36,6 +36,18 @@ fn session(screen_id: &str, screen_name: &str, branch: &str, updated_at: i64) ->
     }
 }
 
+fn session_in_cwd(
+    screen_id: &str,
+    screen_name: &str,
+    cwd: &str,
+    branch: &str,
+    updated_at: i64,
+) -> SessionRow {
+    let mut session = session(screen_id, screen_name, branch, updated_at);
+    session.cwd = cwd.to_string();
+    session
+}
+
 fn session_with_status(
     screen_id: &str,
     screen_name: &str,
@@ -53,6 +65,42 @@ fn workspace(name: &str, updated_at: i64, sessions: Vec<SessionRow>) -> Workspac
     WorkspaceRow {
         key: fixture_path(name),
         path: fixture_path(name),
+        display_name: name.to_string(),
+        branch_label: sessions
+            .first()
+            .map(|session| session.branch.clone())
+            .unwrap_or_else(|| "-".to_string()),
+        pinned: false,
+        tags: Vec::new(),
+        session_count: sessions.len(),
+        waiting_sessions: sessions
+            .iter()
+            .filter(|session| session.status == SessionStatus::WaitingInput)
+            .count(),
+        running_sessions: sessions
+            .iter()
+            .filter(|session| session.status == SessionStatus::Running)
+            .count(),
+        follow_ups: sessions
+            .iter()
+            .map(|session| session.scheduled_follow_ups)
+            .sum(),
+        last_update: Utc.timestamp_opt(updated_at, 0).single(),
+        last_user: "user message".to_string(),
+        last_agent: "agent message".to_string(),
+        sessions,
+    }
+}
+
+fn workspace_at_path(
+    path: &str,
+    name: &str,
+    updated_at: i64,
+    sessions: Vec<SessionRow>,
+) -> WorkspaceRow {
+    WorkspaceRow {
+        key: path.to_string(),
+        path: path.to_string(),
         display_name: name.to_string(),
         branch_label: sessions
             .first()
@@ -138,6 +186,87 @@ fn screen_browser_preserves_selected_screen_across_refresh() {
         Some("200.beta")
     );
     assert_eq!(app.browser_mode, BrowserMode::Screens);
+}
+
+#[test]
+fn screens_view_prefers_browser_selection_over_stale_context_for_same_workspace() {
+    let mut app = App::new(DataCollector::empty_for_test());
+    let workspace_path = fixture_path("shared");
+    let alpha_screen = session_in_cwd(
+        "100.alpha",
+        "alpha-screen",
+        &workspace_path,
+        "feature/a",
+        1_800_000_000,
+    );
+    let beta_screen = session_in_cwd(
+        "200.beta",
+        "beta-screen",
+        &workspace_path,
+        "feature/b",
+        1_700_000_000,
+    );
+    app.data = DashboardData {
+        workspaces: vec![workspace_at_path(
+            &workspace_path,
+            "shared",
+            1_800_000_000,
+            vec![alpha_screen, beta_screen],
+        )],
+    };
+    app.browser_mode = BrowserMode::Screens;
+    app.selected_context_screen_id = Some("100.alpha".to_string());
+    app.recompute_visible();
+
+    let _ = app.handle_normal_key(KeyCode::Down, KeyModifiers::NONE);
+
+    assert_eq!(app.selected_browser_screen_id.as_deref(), Some("200.beta"));
+    assert_eq!(app.selected_context_screen_id.as_deref(), Some("200.beta"));
+    assert_eq!(
+        app.subject_screen().map(|screen| screen.screen_id.as_str()),
+        Some("200.beta")
+    );
+    assert_eq!(
+        app.subject_screen()
+            .map(|screen| screen.screen_name.as_str()),
+        Some("beta-screen")
+    );
+}
+
+#[test]
+fn enter_attaches_browser_selected_screen_in_same_workspace() {
+    let mut app = App::new(DataCollector::empty_for_test());
+    let workspace_path = fixture_path("shared");
+    let alpha_screen = session_in_cwd(
+        "100.alpha",
+        "alpha-screen",
+        &workspace_path,
+        "feature/a",
+        1_800_000_000,
+    );
+    let beta_screen = session_in_cwd(
+        "200.beta",
+        "beta-screen",
+        &workspace_path,
+        "feature/b",
+        1_700_000_000,
+    );
+    app.data = DashboardData {
+        workspaces: vec![workspace_at_path(
+            &workspace_path,
+            "shared",
+            1_800_000_000,
+            vec![alpha_screen, beta_screen],
+        )],
+    };
+    app.browser_mode = BrowserMode::Screens;
+    app.selected_context_screen_id = Some("100.alpha".to_string());
+    app.recompute_visible();
+
+    let _ = app.handle_normal_key(KeyCode::Down, KeyModifiers::NONE);
+    let action = app.handle_normal_key(KeyCode::Enter, KeyModifiers::NONE);
+
+    assert_eq!(action, AppAction::Attach("200.beta".to_string()));
 }
 
 #[test]
@@ -238,6 +367,17 @@ fn tab_skips_context_in_screens_view() {
 
     let _ = app.handle_normal_key(KeyCode::Tab, KeyModifiers::NONE);
     assert_eq!(app.focus, FocusPane::Browser);
+}
+
+#[test]
+fn question_mark_opens_and_closes_help_overlay() {
+    let mut app = App::new(DataCollector::empty_for_test());
+
+    let _ = app.handle_normal_key(KeyCode::Char('?'), KeyModifiers::SHIFT);
+    assert!(matches!(app.overlay, Some(OverlayState::Help)));
+
+    let _ = app.handle_normal_key(KeyCode::Char('?'), KeyModifiers::SHIFT);
+    assert!(app.overlay.is_none());
 }
 
 #[test]

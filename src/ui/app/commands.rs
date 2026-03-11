@@ -19,6 +19,10 @@ impl App {
                 self.open_search_overlay();
                 AppAction::None
             }
+            KeyCode::Char('?') => {
+                self.open_help_overlay();
+                AppAction::None
+            }
             KeyCode::Char('a') => {
                 self.open_action_palette();
                 AppAction::None

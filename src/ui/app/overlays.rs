@@ -13,6 +13,13 @@ impl App {
         modifiers: KeyModifiers,
     ) -> AppAction {
         match self.overlay.clone() {
+            Some(OverlayState::Help) => match code {
+                KeyCode::Esc | KeyCode::Char('?') => {
+                    self.overlay = None;
+                    AppAction::None
+                }
+                _ => AppAction::None,
+            },
             Some(OverlayState::Search(mut overlay)) => {
                 self.handle_search_overlay_key(&mut overlay, code, modifiers)
             }
@@ -241,6 +248,10 @@ impl App {
             selected: 0,
         }));
         self.rebuild_search_results();
+    }
+
+    pub(super) fn open_help_overlay(&mut self) {
+        self.overlay = Some(OverlayState::Help);
     }
 
     pub(super) fn rebuild_search_results(&mut self) {

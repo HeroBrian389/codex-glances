@@ -144,6 +144,7 @@ pub enum SearchTarget {
 
 #[derive(Debug, Clone)]
 pub enum OverlayState {
+    Help,
     Search(SearchOverlay),
     ActionPalette(ActionPaletteOverlay),
     Confirm(ConfirmOverlay),

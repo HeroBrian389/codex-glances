@@ -13,24 +13,35 @@ impl App {
         }
 
         let default_screen_id = self.selected_browser_screen_id.clone();
-        let new_index = self
-            .selected_context_screen_id
-            .as_deref()
-            .and_then(|screen_id| {
-                context_refs.iter().position(|screen_ref| {
-                    self.screen_by_ref(*screen_ref)
-                        .is_some_and(|row| row.screen_id == screen_id)
-                })
-            })
-            .or_else(|| {
-                default_screen_id.as_deref().and_then(|screen_id| {
+        let new_index = if self.browser_mode == BrowserMode::Screens {
+            default_screen_id
+                .as_deref()
+                .and_then(|screen_id| {
                     context_refs.iter().position(|screen_ref| {
                         self.screen_by_ref(*screen_ref)
                             .is_some_and(|row| row.screen_id == screen_id)
                     })
                 })
-            })
-            .unwrap_or(self.context_index.min(context_refs.len() - 1));
+                .unwrap_or(self.context_index.min(context_refs.len() - 1))
+        } else {
+            self.selected_context_screen_id
+                .as_deref()
+                .and_then(|screen_id| {
+                    context_refs.iter().position(|screen_ref| {
+                        self.screen_by_ref(*screen_ref)
+                            .is_some_and(|row| row.screen_id == screen_id)
+                    })
+                })
+                .or_else(|| {
+                    default_screen_id.as_deref().and_then(|screen_id| {
+                        context_refs.iter().position(|screen_ref| {
+                            self.screen_by_ref(*screen_ref)
+                                .is_some_and(|row| row.screen_id == screen_id)
+                        })
+                    })
+                })
+                .unwrap_or(self.context_index.min(context_refs.len() - 1))
+        };
 
         self.context_index = new_index;
         self.selected_context_screen_id = context_refs
@@ -95,21 +106,34 @@ impl App {
     }
 
     pub(crate) fn subject_workspace(&self) -> Option<&WorkspaceRow> {
-        self.selected_context_screen_ref()
-            .and_then(|screen_ref| self.data.workspaces.get(screen_ref.workspace_idx))
-            .or_else(|| self.browser_workspace())
+        if self.browser_mode == BrowserMode::Screens {
+            self.browser_workspace()
+        } else {
+            self.selected_context_screen_ref()
+                .and_then(|screen_ref| self.data.workspaces.get(screen_ref.workspace_idx))
+                .or_else(|| self.browser_workspace())
+        }
     }
 
     pub(crate) fn subject_screen(&self) -> Option<&SessionRow> {
-        self.selected_context_screen()
-            .or_else(|| {
-                self.selected_browser_screen_ref()
-                    .and_then(|screen_ref| self.screen_by_ref(screen_ref))
-            })
-            .or_else(|| {
-                self.subject_workspace()
-                    .and_then(|workspace| workspace.sessions.first())
-            })
+        if self.browser_mode == BrowserMode::Screens {
+            self.selected_browser_screen_ref()
+                .and_then(|screen_ref| self.screen_by_ref(screen_ref))
+                .or_else(|| {
+                    self.subject_workspace()
+                        .and_then(|workspace| workspace.sessions.first())
+                })
+        } else {
+            self.selected_context_screen()
+                .or_else(|| {
+                    self.selected_browser_screen_ref()
+                        .and_then(|screen_ref| self.screen_by_ref(screen_ref))
+                })
+                .or_else(|| {
+                    self.subject_workspace()
+                        .and_then(|workspace| workspace.sessions.first())
+                })
+        }
     }
 
     pub(super) fn activate_focused_selection(&mut self) -> AppAction {

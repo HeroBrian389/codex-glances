@@ -9,6 +9,7 @@ impl App {
     pub(super) fn draw_footer(&self, frame: &mut Frame, area: Rect) {
         let status = if let Some(overlay) = &self.overlay {
             match overlay {
+                OverlayState::Help => "Help | Esc or ? closes this shortcut guide".to_string(),
                 OverlayState::Search(search) => format!(
                     "Search {} results | type to filter, Enter to jump, Esc to close",
                     search.results.len()
@@ -31,8 +32,7 @@ impl App {
         } else if let Some(info) = &self.last_info {
             info.clone()
         } else {
-            "Tab cycles panes, / searches globally, a opens actions, 5 shows all screens"
-                .to_string()
+            "? shows shortcuts, / searches globally, : opens commands, a opens actions".to_string()
         };
 
         frame.render_widget(
@@ -54,12 +54,62 @@ impl App {
         };
 
         match overlay {
+            OverlayState::Help => self.draw_help_overlay(frame),
             OverlayState::Search(search) => self.draw_search_overlay(frame, search),
             OverlayState::ActionPalette(palette) => self.draw_palette_overlay(frame, palette),
             OverlayState::Confirm(confirm) => self.draw_confirm_overlay(frame, confirm),
             OverlayState::Worktree(worktree) => self.draw_worktree_overlay(frame, worktree),
             OverlayState::Input(input) => self.draw_input_overlay(frame, input),
         }
+    }
+
+    fn draw_help_overlay(&self, frame: &mut Frame) {
+        let area = super::super::util::centered_rect(82, 78, frame.area());
+        frame.render_widget(Clear, area);
+        frame.render_widget(
+            Paragraph::new(Text::from(vec![
+                Line::raw("Views"),
+                Line::raw("  1 screens  2 workspaces  3 attention  4 running  5 recent"),
+                Line::raw(""),
+                Line::raw("Navigation"),
+                Line::raw("  Tab / Shift+Tab: cycle panes"),
+                Line::raw("  In Screens view, focus switches only between Browser and Inspector"),
+                Line::raw("  j / k or arrows: move selection"),
+                Line::raw("  [ / ]: switch inspector tabs"),
+                Line::raw("  PageUp / PageDown: scroll inspector"),
+                Line::raw(""),
+                Line::raw("Actions"),
+                Line::raw("  Enter: attach selected screen or activate focused inspector action"),
+                Line::raw("  a: action palette"),
+                Line::raw("  /: global search"),
+                Line::raw("  ?: this help"),
+                Line::raw("  : command mode"),
+                Line::raw("  Shift+N: spawn in selected workspace"),
+                Line::raw("  Shift+W: open worktree spawn"),
+                Line::raw("  i: send Ctrl-C to selected screen"),
+                Line::raw("  Shift+K: close selected screen"),
+                Line::raw("  r: rename selected screen"),
+                Line::raw("  p: pin or unpin selected workspace"),
+                Line::raw("  Shift+A: add workspace path"),
+                Line::raw(""),
+                Line::raw("Command Mode"),
+                Line::raw("  screens, workspaces, attention, running, recent"),
+                Line::raw("  attach, spawn, wt [branch], interrupt, kill"),
+                Line::raw("  rename <name>, add <path>, w2, s1, n3"),
+                Line::raw(""),
+                Line::raw("Overlay Controls"),
+                Line::raw("  Esc closes the current overlay"),
+                Line::raw("  Enter confirms the selected action"),
+            ]))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Help")
+                    .title_bottom("Esc or ? to close"),
+            )
+            .wrap(Wrap { trim: false }),
+            area,
+        );
     }
 
     fn draw_command_overlay(&self, frame: &mut Frame) {
