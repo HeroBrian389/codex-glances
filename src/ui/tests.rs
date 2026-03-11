@@ -36,6 +36,19 @@ fn session(screen_id: &str, screen_name: &str, branch: &str, updated_at: i64) ->
     }
 }
 
+fn session_with_status(
+    screen_id: &str,
+    screen_name: &str,
+    branch: &str,
+    updated_at: i64,
+    status: SessionStatus,
+) -> SessionRow {
+    let mut session = session(screen_id, screen_name, branch, updated_at);
+    session.status = status;
+    session.needs_attention = status == SessionStatus::WaitingInput;
+    session
+}
+
 fn workspace(name: &str, updated_at: i64, sessions: Vec<SessionRow>) -> WorkspaceRow {
     WorkspaceRow {
         key: fixture_path(name),
@@ -125,6 +138,57 @@ fn screen_browser_preserves_selected_screen_across_refresh() {
         Some("200.beta")
     );
     assert_eq!(app.browser_mode, BrowserMode::Screens);
+}
+
+#[test]
+fn screens_view_orders_live_before_inactive_then_latest_to_oldest() {
+    let mut app = App::new(DataCollector::empty_for_test());
+    app.data = DashboardData {
+        workspaces: vec![
+            workspace(
+                "alpha",
+                1_800_000_000,
+                vec![
+                    session_with_status(
+                        "101.alpha",
+                        "idle-newer",
+                        "feature/a",
+                        1_800_000_000,
+                        SessionStatus::Idle,
+                    ),
+                    session_with_status(
+                        "100.alpha",
+                        "running",
+                        "feature/b",
+                        1_700_000_000,
+                        SessionStatus::Running,
+                    ),
+                ],
+            ),
+            workspace(
+                "beta",
+                1_600_000_000,
+                vec![session_with_status(
+                    "200.beta",
+                    "idle-older",
+                    "feature/c",
+                    1_600_000_000,
+                    SessionStatus::Idle,
+                )],
+            ),
+        ],
+    };
+    app.browser_mode = BrowserMode::Screens;
+    app.recompute_visible();
+
+    let ordered = app
+        .visible_screen_refs
+        .iter()
+        .filter_map(|screen_ref| app.screen_by_ref(*screen_ref))
+        .map(|screen| screen.screen_name.as_str())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ordered, vec!["running", "idle-newer", "idle-older"]);
 }
 
 #[test]

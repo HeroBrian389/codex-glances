@@ -39,7 +39,7 @@ struct ProcCandidate {
 }
 
 #[derive(Debug, Clone)]
-struct ProcInfo {
+pub(crate) struct ProcInfo {
     cwd: String,
     thread_id: String,
     fallback_thread_id: String,
@@ -54,7 +54,7 @@ enum SessionKind {
 }
 
 #[derive(Debug, Clone)]
-struct SessionSummary {
+pub(crate) struct SessionSummary {
     last_event: String,
     status_reason: String,
     last_user: String,
@@ -103,7 +103,7 @@ struct SessionMeta {
 }
 
 #[derive(Debug, Clone)]
-struct SessionFile {
+pub(crate) struct SessionFile {
     path: PathBuf,
     stamp: FileStamp,
 }
@@ -148,7 +148,7 @@ struct CachedBranch {
 }
 
 #[derive(Debug, Default)]
-struct SessionMetaMaps {
+pub(crate) struct SessionMetaMaps {
     thread_to_cwd: HashMap<String, String>,
     parent_to_children: HashMap<String, Vec<String>>,
 }
