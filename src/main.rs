@@ -62,10 +62,6 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> 
 
             let action = match app.mode() {
                 InputMode::Normal => app.handle_normal_key(key.code, key.modifiers),
-                InputMode::Search => {
-                    app.handle_search_key(key.code);
-                    AppAction::None
-                }
                 InputMode::Command => app.handle_command_key(key.code),
             };
 

@@ -19,11 +19,13 @@ Glances-style Rust TUI for coordinating many Codex + GNU Screen sessions across 
   - `WAITING`: thread emitted explicit wait events (`exec_approval_request`, `request_user_input`) or clearly asks for user action
   - `IDLE`: thread known but not active and not waiting
   - `UNKNOWN`: no Codex thread mapping found
-- Workspace-first two-pane dashboard: global workspace list plus per-workspace session list
-- Cross-repo views for all workspaces, waiting work, running work, and recent activity
-- Screen controls from the TUI: attach, spawn, kill, interrupt, rename, and pin workspaces
+- Browser/context/inspector TUI with adaptive 3-pane, 2-pane, and compact layouts
+- Cross-repo views for all workspaces, waiting work, running work, recent activity, and all live screens
+- Screen-first controls from the TUI: attach, spawn, kill, interrupt, rename, and pin workspaces
 - Live refresh dashboard (3s)
-- Global search across workspace paths, branches, session ids, and last messages
+- Global search overlay across workspace paths, branches, session ids, and recent timeline content
+- Inspector tabs for summary, parsed timeline, action hints, worktree preview, and raw logs
+- Action palette and confirmation/input overlays for the main operational flows
 
 The app reads Codex state from `~/.codex/`.
 
@@ -57,34 +59,42 @@ cargo clippy --all-targets --all-features -- -D warnings
 ## Keybinds
 
 - `q`: quit
-- `r`: refresh now
-- `j` / `k` or `Down` / `Up`: move selection in the focused pane
-- `Tab`, `Left`, `Right`: switch between workspace and session panes
-- `Enter`: attach the selected session, attach the best session in the selected workspace, or spawn in an inactive workspace
-- `/`: search mode
-- `:`: command mode
+- `Tab` / `Shift+Tab`: cycle `Browser`, `Context`, and `Inspector`
+- `j` / `k` or `Down` / `Up`: move inside the focused pane
+- `PageUp` / `PageDown`: scroll the inspector
+- `Enter`: attach the selected screen, move from workspace browser into context, or open the active inspector action
+- `/`: open global search
+- `a`: open the action palette
+- `:`: open command mode
 - `N`: spawn a new detached Codex screen in the selected workspace
-- `W`: create or reuse a sibling git worktree for the selected session branch, spawn a detached Codex screen there, and immediately attach
+- `W`: open the worktree spawn overlay for the selected screen branch
 - `p`: pin or unpin the selected workspace
-- `x`: kill the selected or best session
-- `i`: send `Ctrl-C` to the selected or best session
-- `c`: clear search filter
-- `1`: show all known workspaces
-- `2`: show workspaces waiting on input
-- `3`: show workspaces with running sessions
+- `i`: send `Ctrl-C` to the selected screen
+- `K`: open close confirmation for the selected screen
+- `r`: rename the selected screen
+- `A`: register a workspace path globally
+- `[` / `]`: switch inspector tabs
+- `1`: show all workspaces
+- `2`: show workspaces needing attention
+- `3`: show running workspaces
 - `4`: show recent workspace activity
+- `5`: show all live screens globally
 
 ## Command Mode
 
 Examples:
 
 - `w3` => select third visible workspace
-- `s2` => attach second session in the selected workspace
+- `s2` => select second visible screen in the context pane
 - `n3` => spawn a new detached Codex screen in the third visible workspace
+- `screens` => switch the browser to the global screen list
+- `workspaces`, `attention`, `running`, `recent` => switch browser views
+- `spawn` or `new` => spawn in the selected workspace
+- `attach` => attach the selected screen
 - `wt` => create or reuse a sibling worktree for the selected session branch, spawn there, and attach
 - `wt feature/x` => same flow, but force a specific branch from the selected session's repo
-- `k1` => kill first session in the selected workspace
-- `i1` => interrupt first session in the selected workspace
+- `interrupt` => send `Ctrl-C` to the selected screen
+- `kill` => quit the selected screen
 - `rename api-hotfix` => rename the selected or best session
 - `add /path/to/repo` => register a workspace even if it has no active screens
-- `7014.s1` => attach explicit screen id
+- `pin` => pin or unpin the selected workspace

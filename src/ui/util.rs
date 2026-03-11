@@ -1,33 +1,8 @@
-use crate::types::{SessionRow, WorkspaceRow};
+use crate::types::WorkspaceRow;
 use chrono::{DateTime, Utc};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-
-pub(super) fn workspace_matches_query(workspace: &WorkspaceRow, query: &str) -> bool {
-    workspace.display_name.to_lowercase().contains(query)
-        || workspace.path.to_lowercase().contains(query)
-        || workspace.branch_label.to_lowercase().contains(query)
-        || workspace
-            .tags
-            .iter()
-            .any(|tag| tag.to_lowercase().contains(query))
-        || workspace
-            .sessions
-            .iter()
-            .any(|session| session_matches_query(session, query))
-}
-
-pub(super) fn session_matches_query(session: &SessionRow, query: &str) -> bool {
-    session.screen_id.to_lowercase().contains(query)
-        || session.screen_name.to_lowercase().contains(query)
-        || session.branch.to_lowercase().contains(query)
-        || session.cwd.to_lowercase().contains(query)
-        || session.thread_id.to_lowercase().contains(query)
-        || session.last_event.to_lowercase().contains(query)
-        || session.last_user.to_lowercase().contains(query)
-        || session.last_agent.to_lowercase().contains(query)
-        || session.scheduled_follow_ups.to_string().contains(query)
-        || session.status.as_str().to_lowercase().contains(query)
-}
+use ratatui::prelude::{Color, Modifier, Style};
+use std::path::Path;
 
 pub(super) fn centered_rect(percent_x: u16, percent_y: u16, area: Rect) -> Rect {
     let popup_layout = Layout::default()
@@ -92,4 +67,76 @@ pub(super) fn truncate_chars(input: &str, max: usize) -> String {
     }
     out.push('…');
     out
+}
+
+pub(super) fn highlight_style(is_focused: bool) -> Style {
+    if is_focused {
+        Style::default()
+            .bg(Color::DarkGray)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+    }
+}
+
+pub(super) fn browser_mode_style(is_active: bool) -> Style {
+    if is_active {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Cyan)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    }
+}
+
+pub(super) fn tab_style(is_active: bool) -> Style {
+    if is_active {
+        Style::default()
+            .fg(Color::Black)
+            .bg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    }
+}
+
+pub(super) fn workspace_activity_badge(workspace: &WorkspaceRow) -> String {
+    if workspace.waiting_sessions > 0 {
+        format!(
+            "W{} R{}",
+            workspace.waiting_sessions, workspace.running_sessions
+        )
+    } else if workspace.session_count > 0 {
+        format!("{} live", workspace.session_count)
+    } else {
+        "saved".to_string()
+    }
+}
+
+pub(super) fn sanitize_branch_for_path(branch: &str) -> String {
+    branch
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+                ch
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>()
+}
+
+pub(super) fn worktree_preview_path(source_cwd: &str, branch: &str) -> String {
+    let path = Path::new(source_cwd);
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let base = path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|name| !name.is_empty())
+        .unwrap_or("workspace");
+    parent
+        .join(format!("{base}--{}", sanitize_branch_for_path(branch)))
+        .to_string_lossy()
+        .into_owned()
 }

@@ -40,9 +40,12 @@ pub struct SessionRow {
     pub needs_attention: bool,
     pub scheduled_follow_ups: usize,
     pub last_event: String,
+    pub status_reason: String,
     pub last_user: String,
     pub last_agent: String,
     pub last_update: Option<DateTime<Utc>>,
+    pub timeline: Vec<SessionTimelineEvent>,
+    pub raw_log: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +69,36 @@ pub struct WorkspaceRow {
 #[derive(Debug, Clone)]
 pub struct DashboardData {
     pub workspaces: Vec<WorkspaceRow>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum TimelineEventKind {
+    User,
+    Agent,
+    Status,
+    Tool,
+    System,
+}
+
+impl TimelineEventKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::User => "USER",
+            Self::Agent => "AGENT",
+            Self::Status => "STATE",
+            Self::Tool => "TOOL",
+            Self::System => "SYS",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionTimelineEvent {
+    pub timestamp: Option<DateTime<Utc>>,
+    pub kind: TimelineEventKind,
+    pub title: String,
+    pub detail: String,
+    pub emphasis: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

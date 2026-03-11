@@ -107,9 +107,12 @@ impl DataCollector {
                 needs_attention,
                 scheduled_follow_ups,
                 last_event: summary.last_event,
+                status_reason: summary.status_reason,
                 last_user,
                 last_agent: summary.last_agent,
                 last_update: summary.last_update,
+                timeline: summary.timeline,
+                raw_log: summary.raw_log,
             };
 
             let workspace_candidate = self.workspace_candidate_for_session(&session_row);
