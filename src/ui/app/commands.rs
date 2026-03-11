@@ -24,39 +24,31 @@ impl App {
                 AppAction::None
             }
             KeyCode::Tab => {
-                self.focus = match self.focus {
-                    FocusPane::Browser => FocusPane::Context,
-                    FocusPane::Context => FocusPane::Inspector,
-                    FocusPane::Inspector => FocusPane::Browser,
-                };
+                self.focus = self.next_focus();
                 AppAction::None
             }
             KeyCode::BackTab => {
-                self.focus = match self.focus {
-                    FocusPane::Browser => FocusPane::Inspector,
-                    FocusPane::Context => FocusPane::Browser,
-                    FocusPane::Inspector => FocusPane::Context,
-                };
+                self.focus = self.prev_focus();
                 AppAction::None
             }
             KeyCode::Char('1') => {
-                self.set_browser_mode(BrowserMode::Workspaces);
+                self.set_browser_mode(BrowserMode::Screens);
                 AppAction::None
             }
             KeyCode::Char('2') => {
-                self.set_browser_mode(BrowserMode::Attention);
+                self.set_browser_mode(BrowserMode::Workspaces);
                 AppAction::None
             }
             KeyCode::Char('3') => {
-                self.set_browser_mode(BrowserMode::Running);
+                self.set_browser_mode(BrowserMode::Attention);
                 AppAction::None
             }
             KeyCode::Char('4') => {
-                self.set_browser_mode(BrowserMode::Recent);
+                self.set_browser_mode(BrowserMode::Running);
                 AppAction::None
             }
             KeyCode::Char('5') => {
-                self.set_browser_mode(BrowserMode::Screens);
+                self.set_browser_mode(BrowserMode::Recent);
                 AppAction::None
             }
             KeyCode::Char('[') => {
@@ -261,6 +253,38 @@ impl App {
             AppAction::None
         } else {
             AppAction::AddWorkspace(value)
+        }
+    }
+
+    fn next_focus(&self) -> FocusPane {
+        if self.browser_mode == BrowserMode::Screens {
+            match self.focus {
+                FocusPane::Browser => FocusPane::Inspector,
+                FocusPane::Context => FocusPane::Inspector,
+                FocusPane::Inspector => FocusPane::Browser,
+            }
+        } else {
+            match self.focus {
+                FocusPane::Browser => FocusPane::Context,
+                FocusPane::Context => FocusPane::Inspector,
+                FocusPane::Inspector => FocusPane::Browser,
+            }
+        }
+    }
+
+    fn prev_focus(&self) -> FocusPane {
+        if self.browser_mode == BrowserMode::Screens {
+            match self.focus {
+                FocusPane::Browser => FocusPane::Inspector,
+                FocusPane::Context => FocusPane::Browser,
+                FocusPane::Inspector => FocusPane::Browser,
+            }
+        } else {
+            match self.focus {
+                FocusPane::Browser => FocusPane::Inspector,
+                FocusPane::Context => FocusPane::Browser,
+                FocusPane::Inspector => FocusPane::Context,
+            }
         }
     }
 }

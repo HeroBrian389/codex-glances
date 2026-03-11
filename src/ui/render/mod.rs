@@ -57,11 +57,11 @@ impl App {
             .sum::<usize>();
 
         let tabs = [
+            BrowserMode::Screens,
             BrowserMode::Workspaces,
             BrowserMode::Attention,
             BrowserMode::Running,
             BrowserMode::Recent,
-            BrowserMode::Screens,
         ]
         .into_iter()
         .flat_map(|mode| {
@@ -108,6 +108,16 @@ impl App {
     }
 
     fn draw_wide_body(&mut self, frame: &mut Frame, area: Rect) {
+        if self.browser_mode == BrowserMode::Screens {
+            let panes = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(46), Constraint::Percentage(54)])
+                .split(area);
+            self.draw_browser_pane(frame, panes[0]);
+            self.draw_inspector_pane(frame, panes[1]);
+            return;
+        }
+
         let panes = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
@@ -122,6 +132,16 @@ impl App {
     }
 
     fn draw_medium_body(&mut self, frame: &mut Frame, area: Rect) {
+        if self.browser_mode == BrowserMode::Screens {
+            let panes = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(44), Constraint::Percentage(56)])
+                .split(area);
+            self.draw_browser_pane(frame, panes[0]);
+            self.draw_inspector_pane(frame, panes[1]);
+            return;
+        }
+
         let panes = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(41), Constraint::Percentage(59)])

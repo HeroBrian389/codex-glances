@@ -29,7 +29,7 @@ impl App {
             mode: InputMode::Normal,
             overlay: None,
             command: String::new(),
-            browser_mode: super::BrowserMode::Workspaces,
+            browser_mode: super::BrowserMode::Screens,
             inspector_tab: super::InspectorTab::Summary,
             inspector_scroll: 0,
             last_error: None,
@@ -92,8 +92,8 @@ pub(super) fn compare_screen_rows(left: &SessionRow, right: &SessionRow) -> Orde
     let left_live = left.needs_attention || is_live_screen(left.status);
     let right_live = right.needs_attention || is_live_screen(right.status);
 
-    (!left_live)
-        .cmp(&!right_live)
+    left_live
+        .cmp(&right_live)
         .then_with(|| compare_optional_desc(left.last_update, right.last_update))
         .then_with(|| left.status.rank().cmp(&right.status.rank()))
         .then_with(|| {

@@ -230,8 +230,8 @@ fn compare_screen_rows(left: &SessionRow, right: &SessionRow) -> std::cmp::Order
     let left_live = left.needs_attention || is_live_screen(left.status);
     let right_live = right.needs_attention || is_live_screen(right.status);
 
-    (!left_live)
-        .cmp(&!right_live)
+    left_live
+        .cmp(&right_live)
         .then_with(|| right.last_update.cmp(&left.last_update))
         .then_with(|| left.status.rank().cmp(&right.status.rank()))
         .then_with(|| {

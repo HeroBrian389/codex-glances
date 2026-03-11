@@ -19,8 +19,8 @@ Glances-style Rust TUI for coordinating many Codex + GNU Screen sessions across 
   - `WAITING`: thread emitted explicit wait events (`exec_approval_request`, `request_user_input`) or clearly asks for user action
   - `IDLE`: thread known but not active and not waiting
   - `UNKNOWN`: no Codex thread mapping found
-- Browser/context/inspector TUI with adaptive 3-pane, 2-pane, and compact layouts
-- Cross-repo views for all workspaces, waiting work, running work, recent activity, and all live screens
+- Browser/inspector-first TUI with adaptive layouts, including a dedicated two-pane Screens view
+- Cross-repo views for all live screens, all workspaces, waiting work, running work, and recent activity
 - Screen-first controls from the TUI: attach, spawn, kill, interrupt, rename, and pin workspaces
 - Live refresh dashboard (3s)
 - Global search overlay across workspace paths, branches, session ids, and recent timeline content
@@ -59,7 +59,7 @@ cargo clippy --all-targets --all-features -- -D warnings
 ## Keybinds
 
 - `q`: quit
-- `Tab` / `Shift+Tab`: cycle `Browser`, `Context`, and `Inspector`
+- `Tab` / `Shift+Tab`: cycle panes. In `Screens` view this switches only between `Browser` and `Inspector`
 - `j` / `k` or `Down` / `Up`: move inside the focused pane
 - `PageUp` / `PageDown`: scroll the inspector
 - `Enter`: attach the selected screen, move from workspace browser into context, or open the active inspector action
@@ -74,11 +74,11 @@ cargo clippy --all-targets --all-features -- -D warnings
 - `r`: rename the selected screen
 - `A`: register a workspace path globally
 - `[` / `]`: switch inspector tabs
-- `1`: show all workspaces
-- `2`: show workspaces needing attention
-- `3`: show running workspaces
-- `4`: show recent workspace activity
-- `5`: show all live screens globally
+- `1`: show all live screens globally
+- `2`: show all workspaces
+- `3`: show workspaces needing attention
+- `4`: show running workspaces
+- `5`: show recent workspace activity
 
 ## Command Mode
 

@@ -339,7 +339,7 @@ impl App {
                 self.selected_browser_screen_id = Some(screen_id.clone());
                 self.selected_context_screen_id = Some(screen_id.clone());
                 self.inspector_tab = *tab;
-                self.focus = FocusPane::Context;
+                self.focus = FocusPane::Browser;
             }
         }
 
@@ -403,11 +403,11 @@ impl App {
         });
 
         for mode in [
+            BrowserMode::Screens,
             BrowserMode::Workspaces,
             BrowserMode::Attention,
             BrowserMode::Running,
             BrowserMode::Recent,
-            BrowserMode::Screens,
         ] {
             items.push(ActionPaletteItem {
                 label: format!("View {}", mode.label()),

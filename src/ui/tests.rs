@@ -141,7 +141,7 @@ fn screen_browser_preserves_selected_screen_across_refresh() {
 }
 
 #[test]
-fn screens_view_orders_live_before_inactive_then_latest_to_oldest() {
+fn screens_view_orders_inactive_before_live_then_latest_to_oldest() {
     let mut app = App::new(DataCollector::empty_for_test());
     app.data = DashboardData {
         workspaces: vec![
@@ -188,7 +188,7 @@ fn screens_view_orders_live_before_inactive_then_latest_to_oldest() {
         .map(|screen| screen.screen_name.as_str())
         .collect::<Vec<_>>();
 
-    assert_eq!(ordered, vec!["running", "idle-newer", "idle-older"]);
+    assert_eq!(ordered, vec!["idle-newer", "idle-older", "running"]);
 }
 
 #[test]
@@ -215,12 +215,29 @@ fn search_overlay_selects_screen_and_switches_to_screens_mode() {
     let _ = app.handle_normal_key(KeyCode::Enter, KeyModifiers::NONE);
 
     assert_eq!(app.browser_mode, BrowserMode::Screens);
-    assert_eq!(app.focus, FocusPane::Context);
+    assert_eq!(app.focus, FocusPane::Browser);
     assert_eq!(
         app.subject_screen()
             .map(|screen| screen.screen_name.as_str()),
         Some("alpha-screen")
     );
+}
+
+#[test]
+fn app_defaults_to_screens_browser_mode() {
+    let app = App::new(DataCollector::empty_for_test());
+    assert_eq!(app.browser_mode, BrowserMode::Screens);
+    assert_eq!(app.focus, FocusPane::Browser);
+}
+
+#[test]
+fn tab_skips_context_in_screens_view() {
+    let mut app = App::new(DataCollector::empty_for_test());
+    let _ = app.handle_normal_key(KeyCode::Tab, KeyModifiers::NONE);
+    assert_eq!(app.focus, FocusPane::Inspector);
+
+    let _ = app.handle_normal_key(KeyCode::Tab, KeyModifiers::NONE);
+    assert_eq!(app.focus, FocusPane::Browser);
 }
 
 #[test]
